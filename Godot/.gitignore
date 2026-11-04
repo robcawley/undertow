@@ -1,0 +1,9 @@
+build/
+godot-cpp/
+demo/.godot/
+demo/addons/undertow/bin/
+*.log
+*.sh
+.sconsign.dblite
+*.os
+*.o

@@ -1,0 +1,183 @@
+// UNDERTOW core: parameter table. MIT licence (see LICENSE).
+#pragma once
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include "Util.h"
+namespace ut {
+enum Param {
+  mix,
+  in_gain,
+  out_gain,
+  anchor_on,
+  anchor_freq,
+  anchor_mono,
+  duck_amount,
+  duck_release,
+  bloom,
+  drift_on,
+  drift_sync,
+  drift_rate,
+  drift_div,
+  drift_depth,
+  drift_wow,
+  drift_flutter,
+  drift_width,
+  drift_mix,
+  echo_on,
+  echo_mode,
+  echo_sync,
+  echo_div,
+  echo_time,
+  echo_feedback,
+  echo_tone,
+  echo_lowcut,
+  echo_drive,
+  echo_age,
+  echo_level,
+  void_on,
+  void_size,
+  void_decay,
+  void_predelay,
+  void_damp,
+  void_lowcut,
+  void_diffusion,
+  void_mod,
+  void_width,
+  void_gravity,
+  void_freeze,
+  void_level,
+  pulse_on,
+  pulse_position,
+  pulse_bands,
+  pulse_xover1,
+  pulse_xover2,
+  pulse_xover3,
+  pulse_xover4,
+  pulse_xover5,
+  pulse_smooth,
+  pulse_sub,
+  pulse_b1_sync,
+  pulse_b1_div,
+  pulse_b1_rate,
+  pulse_b1_depth,
+  pulse_b1_shape,
+  pulse_b1_phase,
+  pulse_b1_source,
+  pulse_b2_sync,
+  pulse_b2_div,
+  pulse_b2_rate,
+  pulse_b2_depth,
+  pulse_b2_shape,
+  pulse_b2_phase,
+  pulse_b2_source,
+  pulse_b3_sync,
+  pulse_b3_div,
+  pulse_b3_rate,
+  pulse_b3_depth,
+  pulse_b3_shape,
+  pulse_b3_phase,
+  pulse_b3_source,
+  pulse_b4_sync,
+  pulse_b4_div,
+  pulse_b4_rate,
+  pulse_b4_depth,
+  pulse_b4_shape,
+  pulse_b4_phase,
+  pulse_b4_source,
+  pulse_b5_sync,
+  pulse_b5_div,
+  pulse_b5_rate,
+  pulse_b5_depth,
+  pulse_b5_shape,
+  pulse_b5_phase,
+  pulse_b5_source,
+  pulse_b6_sync,
+  pulse_b6_div,
+  pulse_b6_rate,
+  pulse_b6_depth,
+  pulse_b6_shape,
+  pulse_b6_phase,
+  pulse_b6_source,
+  pulse_focus_on,
+  pulse_focus_note,
+  pulse_focus_harm,
+  pulse_focus_q,
+  pulse_focus_depth,
+  pulse_focus_div,
+  xy_x,
+  xy_y,
+  xy_amount,
+  xy_flip_a,
+  xy_flip_b,
+  xy_flip_c,
+  xy_flip_d,
+  xy_current,
+  xy_radius,
+  xy_rate,
+  xy_angle,
+  xy_motion_bars,
+  xy_motion_play,
+  macro_depth,
+  macro_motion,
+  macro_glow,
+  macro_chaos,
+  // ---- 0.4: MUTATE (appended; IDs are permanent)
+  mut_on,
+  harm_octave,
+  harm_fifth,
+  harm_odd,
+  harm_sub,
+  halo_climb,
+  halo_interval,
+  halo_spread,
+  evolve_amount,
+  evolve_cycle,
+  evolve_size,
+  evolve_tone,
+  evolve_formant,
+  evolve_follow,
+  macro_mutate,
+  xy_return,
+  count
+};
+struct Spec {
+  const char *id;
+  const char *name;
+  float lo, hi, initial, centre;
+  const char *unit;
+  const char *choices;
+  int kind;
+};
+extern const std::array<Spec, count> specs;
+
+// A parameter's plain range, with the same skew rule the plug-in's host
+// parameters use (a "centre" value lands at the middle of the knob).
+struct Range {
+  float start = 0, end = 1, skew = 1;
+  bool skewed = false;
+  static Range of(const Spec &s) noexcept {
+    Range r{s.lo, s.hi};
+    if (s.kind == 0 && s.centre > s.lo && s.centre < s.hi) {
+      r.skew = std::log(0.5f) / std::log((s.centre - s.lo) / (s.hi - s.lo));
+      r.skewed = std::abs(r.skew - 1.f) > 1.e-6f;
+    }
+    return r;
+  }
+  float convertTo0to1(float v) const noexcept {
+    const float p = limit(0.f, 1.f, (v - start) / (end - start));
+    return skewed ? std::pow(p, skew) : p;
+  }
+  float convertFrom0to1(float p) const noexcept {
+    p = limit(0.f, 1.f, p);
+    if (skewed && p > 0)
+      p = std::exp(std::log(p) / skew);
+    return start + (end - start) * p;
+  }
+};
+
+inline constexpr double beats[]{.0625,   .125, 1.0 / 12, 1.0 / 6, .1875, .25,
+                                1.0 / 3, .375, .5,       2.0 / 3, .75,   1,
+                                4.0 / 3, 1.5,  2,        8.0 / 3, 3,     4,
+                                8,       16,   32};
+} // namespace ut

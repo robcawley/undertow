@@ -1,0 +1,12 @@
+[configuration]
+
+entry_symbol = "undertow_library_init"
+compatibility_minimum = "4.5"
+reloadable = true
+
+[libraries]
+
+macos = "res://addons/undertow/bin/libundertow.macos.template_release.universal.dylib"
+windows.x86_64 = "res://addons/undertow/bin/libundertow.windows.template_release.x86_64.dll"
+linux.x86_64 = "res://addons/undertow/bin/libundertow.linux.template_release.x86_64.so"
+linux.arm64 = "res://addons/undertow/bin/libundertow.linux.template_release.arm64.so"
