@@ -1,0 +1,93 @@
+name: Godot extension
+
+# Builds the UNDERTOW GDExtension for macOS, Windows and Linux, runs the
+# headless checks on Linux and Windows with the oldest supported Godot, and
+# uploads the ready-to-use addon folder.
+
+on:
+  push:
+    paths: ["Source/Core/**", "Godot/**", ".github/workflows/godot.yml"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_CPP_REF: 27d9dd2   # godot-cpp 4.5 branch
+  GODOT_TEST_VERSION: 4.5.2
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,         platform: macos,   arch: universal }
+          - { os: windows-2022,     platform: windows, arch: x86_64 }
+          - { os: ubuntu-22.04,     platform: linux,   arch: x86_64 }
+          - { os: ubuntu-22.04-arm, platform: linux,   arch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Tools
+        run: pip install scons
+      - name: godot-cpp
+        shell: bash
+        run: |
+          git clone -q -b 4.5 https://github.com/godotengine/godot-cpp.git Godot/godot-cpp
+          git -C Godot/godot-cpp checkout -q "$GODOT_CPP_REF"
+      - name: Build
+        working-directory: Godot
+        shell: bash
+        run: scons -j4 platform=${{ matrix.platform }} arch=${{ matrix.arch }} target=template_release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.platform }}-${{ matrix.arch }}
+          path: Godot/demo/addons/undertow/bin/
+
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, godot: "linux.x86_64",  exe: "Godot_v4.5.2-stable_linux.x86_64" }
+          - { os: windows-2022, godot: "win64.exe",     exe: "Godot_v4.5.2-stable_win64_console.exe" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: Godot/demo/addons/undertow/bin/
+          merge-multiple: true
+      - name: Godot
+        shell: bash
+        run: |
+          curl -sL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TEST_VERSION}-stable/Godot_v${GODOT_TEST_VERSION}-stable_${{ matrix.godot }}.zip"
+          unzip -q godot.zip -d godot
+      - name: Import, then run the checks
+        shell: bash
+        run: |
+          G="godot/${{ matrix.exe }}"
+          chmod +x "$G" || true
+          # Import by running the editor briefly: a bare --import can exit
+          # while the editor is still documenting the new classes.
+          "$G" --headless --editor --path Godot/demo --quit-after 900 || true
+          "$G" --headless --path Godot/demo -s res://test/run_tests.gd | tee test.log
+          grep -q "RESULT 0 failures" test.log
+
+  addon:
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bin-*
+          path: Godot/demo/addons/undertow/bin/
+          merge-multiple: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: undertow-godot-addon
+          path: Godot/demo/addons/

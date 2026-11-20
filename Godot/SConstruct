@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+# Builds the UNDERTOW GDExtension. Run from this folder:
+#   scons platform=macos arch=universal target=template_release
+# GODOT_CPP: path to a godot-cpp checkout on the 4.5 branch (default: ./godot-cpp)
+import os
+
+godot_cpp = ARGUMENTS.get("godot_cpp", os.environ.get("GODOT_CPP", "godot-cpp"))
+env = SConscript(os.path.join(godot_cpp, "SConstruct"))
+
+core = "../Source/Core"
+env.Append(CPPPATH=["src", core])
+# Object files go under build/, never next to the shared core sources.
+core_files = ['Specs.cpp', 'Engine.cpp', 'Pulse.cpp', 'Modulation.cpp',
+              'Presets.cpp', 'GamePresets.cpp', 'Processor.cpp']
+sources = Glob('src/*.cpp') + [
+    env.SharedObject(target='build/obj/core/' + f[:-4] + env['suffix'], source=os.path.join(core, f))
+    for f in core_files
+]
+
+addon = "demo/addons/undertow/bin"
+name = "libundertow{}{}".format(env["suffix"], env["SHLIBSUFFIX"])
+library = env.SharedLibrary(os.path.join(addon, name), source=sources)
+Default(library)
